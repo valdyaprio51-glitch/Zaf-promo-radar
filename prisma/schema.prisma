@@ -1,0 +1,259 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  MERCHANT
+  ADMIN
+}
+
+enum MerchantStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum PromotionStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  NEEDS_VERIFICATION
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum SourceType {
+  OFFICIAL_API
+  AFFILIATE_API
+  MERCHANT_SUBMISSION
+  PUBLIC_SOURCE
+}
+
+enum CollectionMethod {
+  API
+  SCRAPER
+  MANUAL
+}
+
+enum ReportType {
+  EXPIRED
+  WRONG_PRICE
+  FAKE_PROMO
+  OUT_OF_STOCK
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+enum IngestionStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  name         String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  favorites Favorite[]
+  alerts    UserAlert[]
+  reports   PromotionReport[]
+
+  @@map("users")
+}
+
+model Merchant {
+  id         String         @id @default(uuid())
+  name       String
+  slug       String         @unique
+  logoUrl    String?        @map("logo_url")
+  websiteUrl String?        @map("website_url")
+  status     MerchantStatus @default(ACTIVE)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  promotions Promotion[]
+  alerts     UserAlert[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("merchants")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  parentId  String?  @map("parent_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  parent     Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Category[]  @relation("CategoryHierarchy")
+  promotions Promotion[]
+  alerts     UserAlert[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("categories")
+}
+
+model PromotionSource {
+  id               String           @id @default(uuid())
+  name             String
+  sourceType       SourceType       @map("source_type")
+  baseUrl          String           @map("base_url")
+  termsUrl         String?          @map("terms_url")
+  collectionMethod CollectionMethod @default(API) @map("collection_method")
+  isActive         Boolean          @default(true) @map("is_active")
+  lastSuccessAt    DateTime?        @map("last_success_at") @db.Timestamptz
+  lastErrorAt      DateTime?        @map("last_error_at") @db.Timestamptz
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  promotions    Promotion[]
+  ingestionRuns IngestionRun[]
+
+  @@map("promotion_sources")
+}
+
+model Promotion {
+  id                 String             @id @default(uuid())
+  merchantId         String             @map("merchant_id")
+  categoryId         String             @map("category_id")
+  title              String
+  slug               String             @unique
+  description        String             @db.Text
+  imageUrl           String?            @map("image_url")
+  originalPrice      Int?               @map("original_price") // Integer IDR (contoh: 50000)
+  promoPrice         Int?               @map("promo_price") // Integer IDR (contoh: 35000)
+  discountPercentage Int?               @map("discount_percentage")
+  termsText          String?            @map("terms_text") @db.Text
+  startAt            DateTime?          @map("start_at") @db.Timestamptz
+  endAt              DateTime?          @map("end_at") @db.Timestamptz
+  status             PromotionStatus    @default(ACTIVE)
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  lastVerifiedAt     DateTime?          @map("last_verified_at") @db.Timestamptz
+  sourceId           String?            @map("source_id")
+  sourceUrl          String?            @map("source_url")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  merchant     Merchant                @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category     Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  source       PromotionSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  priceHistory PromotionPriceHistory[]
+  favorites    Favorite[]
+  reports      PromotionReport[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([merchantId])
+  @@index([categoryId])
+  @@index([endAt])
+  @@index([verificationStatus])
+  @@map("promotions")
+}
+
+model PromotionPriceHistory {
+  id              String   @id @default(uuid())
+  promotionId     String   @map("promotion_id")
+  originalPrice   Int?     @map("original_price")
+  promoPrice      Int?     @map("promo_price")
+  capturedAt      DateTime @default(now()) @map("captured_at") @db.Timestamptz
+  sourceReference String?  @map("source_reference")
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+  @@index([capturedAt])
+  @@map("promotion_price_history")
+}
+
+model Favorite {
+  userId      String   @map("user_id")
+  promotionId String   @map("promotion_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, promotionId])
+  @@map("favorites")
+}
+
+model UserAlert {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  keyword      String?
+  categoryId   String?  @map("category_id")
+  merchantId   String?  @map("merchant_id")
+  locationCode String?  @map("location_code")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  merchant Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("user_alerts")
+}
+
+model PromotionReport {
+  id          String       @id @default(uuid())
+  promotionId String       @map("promotion_id")
+  userId      String?      @map("user_id")
+  reportType  ReportType   @map("report_type")
+  description String       @db.Text
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt  DateTime?    @map("resolved_at") @db.Timestamptz
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([promotionId])
+  @@index([status])
+  @@map("promotion_reports")
+}
+
+model IngestionRun {
+  id               String          @id @default(uuid())
+  sourceId         String          @map("source_id")
+  startedAt        DateTime        @default(now()) @map("started_at") @db.Timestamptz
+  finishedAt       DateTime?       @map("finished_at") @db.Timestamptz
+  status           IngestionStatus @default(RUNNING)
+  recordsProcessed Int             @default(0) @map("records_processed")
+  recordsFailed    Int             @default(0) @map("records_failed")
+  errorMessage     String?         @map("error_message") @db.Text
+
+  source PromotionSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([status])
+  @@map("ingestion_runs")
+}
