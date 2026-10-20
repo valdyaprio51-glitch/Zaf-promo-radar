@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Grid, Shield } from "lucide-react";
+import { Home, Compass, Grid, Heart, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function MobileNav() {
@@ -12,7 +12,8 @@ export function MobileNav() {
   const navItems = [
     { label: "Beranda", href: "/", icon: Home, exact: true },
     { label: "Jelajah", href: "/promos", icon: Compass },
-    { label: "Kategori", href: "/promos?category=supermarket-sembako", icon: Grid },
+    { label: "Kategori", href: "/categories", icon: Grid },
+    { label: "Favorit", href: "/favorites", icon: Heart },
     { label: "Admin", href: "/admin", icon: Shield },
   ];
 
@@ -44,4 +45,3 @@ export function MobileNav() {
     </div>
   );
 }
-

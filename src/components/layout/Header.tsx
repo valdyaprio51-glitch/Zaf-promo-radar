@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Radar, Compass, Store, Grid, Shield } from "lucide-react";
+import { Radar, Compass, Store, Grid, Shield, Heart, Bell } from "lucide-react";
 
 export function Header() {
   return (
@@ -31,18 +31,32 @@ export function Header() {
             Jelajah Promo
           </Link>
           <Link
-            href="/promos?category=supermarket-sembako"
+            href="/categories"
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-emerald-600 hover:bg-emerald-50/60 transition-colors"
           >
             <Grid className="w-4 h-4" />
             Kategori
           </Link>
           <Link
-            href="/promos?sortBy=ending_soon"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-amber-600 hover:bg-amber-50/60 transition-colors"
+            href="/merchants"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-emerald-600 hover:bg-emerald-50/60 transition-colors"
           >
             <Store className="w-4 h-4" />
-            Segera Berakhir
+            Toko / Merchant
+          </Link>
+          <Link
+            href="/favorites"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-rose-600 hover:bg-rose-50/60 transition-colors"
+          >
+            <Heart className="w-4 h-4" />
+            Favorit
+          </Link>
+          <Link
+            href="/alerts"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-blue-600 hover:bg-blue-50/60 transition-colors"
+          >
+            <Bell className="w-4 h-4" />
+            Alerts
           </Link>
         </nav>
 
@@ -67,4 +81,3 @@ export function Header() {
     </header>
   );
 }
-
